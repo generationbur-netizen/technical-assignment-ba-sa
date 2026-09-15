@@ -1,0 +1,155 @@
+openapi: 3.0.3
+info:
+  title: Book Store API 
+  description: "Метод создаёт нового пользователя в системе **Book Store**. Вызывается клиентской частью сайта, когда пользователь заполнил форму **Register to Book Store** и нажал кнопку ***Register***. Допущения: имя поля токена капчи (recaptchaToken); ограничения длины firstName/lastName (1–50); состав тела успешного ответа (на картинке видно только сообщение)."
+  version: 1.0.0
+paths:
+  /api/v1/users:
+    post:
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+      responses:
+        '201':
+          description: Пользователь создан
+          content: 
+            application/json: 
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+        '400':
+          description: Обязательное поле не заполнено или значение не соответствует ограничениям; Пароль не соответствует правилам; Токен reCAPTCHA не передан или невалиден
+          content: 
+            application/json: 
+              schema: 
+                $ref: '#/components/schemas/Error'
+              examples:  
+                weakpassword:
+                  summary: Пароль не соответствует правилам
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Please check the entered data
+                    details:
+                      - field: password
+                        issue: Password must have at least one non alphanumeric character, one digit (0-9), one uppercase (A - Z), one lowercase (a - z), one special character and Password must be eight characters or longer 
+                missingFields:
+                  summary: Не заполнены обязательные поля
+                  value:
+                    code: VALIDATION_ERROR
+                    message: Please check the entered data
+                    details:
+                      - field: firstName
+                        issue: required
+                      - field: lastName
+                        issue: required
+                captchaMissing:
+                  summary: Не пройдена reCAPTCHA
+                  value:
+                    code: CAPTCHA_REQUIRED
+                    message: Please verify reCaptcha to register!
+                    details: 
+                      - field: recaptchaToken
+                        issue: required       
+        '409':
+          description: Пользователь с таким userName уже существует
+          content: 
+            application/json: 
+              schema: 
+                $ref: '#/components/schemas/Error'
+              example:
+                code: USER_EXISTS
+                message: User exists!
+                details: []  
+        '500':
+          description: Непредвиденная ошибка на сервере 
+          content: 
+            application/json: 
+              schema:  
+                $ref: '#/components/schemas/ServerError'
+              example:
+                code: INTERNAL_ERROR
+                message: Unexpected server error
+        '503':
+          description: Сервис временно недоступен
+          content: 
+            application/json: 
+              schema: 
+                $ref: '#/components/schemas/ServerError'
+              example:
+                code: SERVICE_UNAVAILABLE 
+                message: The service is temporarily unavailable
+components: 
+  schemas: 
+    RegistrationRequest:
+      type: object
+      required: [firstName, lastName, userName, password, recaptchaToken]
+      properties: 
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Имя пользователя 
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Фамилия пользователя 
+        userName:
+          type: string
+          minLength: 1
+          description: Логин пользователя. Не должен совпадать с существующим userName
+        password:
+          type: string
+          minLength: 8
+          description: Пароль для входа. Обязательно должен содержать минимум 1 цифру, 1 заглавную латинскую букву, 1 строчную латинскую букву, 1 спецсимвол
+        recaptchaToken:
+          type: string
+          description: Подтверждение прохождения проверки I'm not a robot. Валидный, не истёкший токен от Google reCAPTCHA
+      example:
+        firstName: Aleksandr
+        lastName: Khlebnikov
+        userName: a_khlebnikov
+        password: "Qwerty!12"
+        recaptchaToken: "03AGdBq26k..."  
+    RegistrationResponse:
+      type: object
+      properties: 
+        userID:
+          type: integer
+          description: Идентификатор созданного пользователя
+        userName:
+          type: string
+          description: Логин пользователя 
+        message:
+          type: string
+          description: Сообщение об успешной регистрации    
+      example:
+        userID: 1234567    
+        userName: a_khlebnikov
+        message: User Register Successfully
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string            
+    ServerError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
